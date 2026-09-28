@@ -1,0 +1,324 @@
+erDiagram
+    %% ========== 系统管理模块（5张表） ==========
+    sys_user {
+        bigint id PK "主键"
+        varchar username UK "登录账号（唯一）"
+        varchar password "密码（BCrypt加密）"
+        varchar real_name "真实姓名"
+        varchar phone "手机号"
+        varchar email "邮箱"
+        bigint current_role_id FK "当前使用角色ID（支持多角色切换）"
+        tinyint status "状态：0-禁用 1-正常"
+        tinyint deleted "逻辑删除：0-未删 1-已删"
+        datetime create_time "创建时间"
+        datetime update_time "更新时间"
+    }
+
+    sys_role {
+        bigint id PK "主键"
+        varchar role_name "角色名称：ADMIN/MANAGER/CHECKER/TOURIST"
+        varchar role_code UK "角色编码（唯一）"
+        int role_level "角色等级（数值越大权限越高）：1/2/3/4"
+        datetime create_time "创建时间"
+    }
+
+    sys_user_role {
+        bigint id PK "主键"
+        bigint user_id FK "用户ID"
+        bigint role_id FK "角色ID"
+        datetime create_time "分配时间"
+    }
+
+    sys_oper_log {
+        bigint id PK "主键"
+        bigint user_id FK "操作人ID"
+        varchar module "操作模块名（如：订单/票务/团体票）"
+        varchar action "操作动作（如：新增/删除/审核通过）"
+        varchar description "操作描述"
+        varchar request_method "HTTP请求方法：GET/POST/PUT/DELETE"
+        varchar request_url "请求URL路径"
+        varchar ip "客户端IP地址"
+        int status "执行结果：0-失败 1-成功"
+        long cost_time "耗时（毫秒）"
+        text error_msg "错误信息（失败时记录）"
+        datetime create_time "操作时间"
+    }
+
+    sys_config {
+        bigint id PK "主键"
+        varchar config_key UK "配置键（唯一），如：scenic.name / baidu.api_key"
+        mediumtext config_value "配置值（JSON或文本）"
+        varchar config_group "配置分组：scenic / ai / payment / system"
+        varchar description "配置说明"
+        tinyint is_encrypted "是否加密：0-否 1-是（敏感密钥AES-256存储）"
+    }
+
+    %% ========== 景区内容模块（4张表） ==========
+    scenic {
+        bigint id PK "主键"
+        varchar name "景区名称（全局引用，一键替换）"
+        varchar address "景区详细地址"
+        text description "景区介绍文案"
+        text logo_url "Logo图片路径"
+        time open_time "开放开始时间（默认08:00）"
+        time close_time "关闭时间（默认17:30）"
+        int max_capacity "最大日承载量（人）"
+        text banner_images "首页轮播图列表（JSON数组）"
+        text home_bg_image "首页背景图路径"
+        varchar primary_color "主题主色（如#1a73e8）"
+        tinyint status "运营状态：0-暂停营业 1-正常运营"
+        datetime create_time "创建时间"
+        datetime update_time "更新时间"
+    }
+
+    scenic_spot {
+        bigint id PK "主键"
+        bigint scenic_id FK "所属景区ID"
+        varchar name "景点名称（如：毛泽东青年艺术雕塑、问天台）"
+        varchar description "景点详细介绍"
+        text image_url "景点图片路径"
+        decimal longitude "经度坐标"
+        decimal latitude "纬度坐标"
+        int display_order "展示排序号"
+        datetime create_time "创建时间"
+    }
+
+    scenic_facility {
+        bigint id PK "主键"
+        bigint scenic_id FK "所属景区ID"
+        varchar name "设施名称（如：南门停车场、游客服务中心）"
+        varchar type "设施类型：restroom/parking/dining/medical/service"
+        varchar description "设施描述"
+        text image_url "设施图片"
+        decimal longitude "经度坐标"
+        decimal latitude "纬度坐标"
+        int display_order "展示排序"
+        datetime create_time "创建时间"
+    }
+
+    announcement {
+        bigint id PK "主键"
+        varchar title "公告标题"
+        text content "公告内容（支持HTML富文本）"
+        tinyint is_top "是否置顶：0-否 1-是"
+        int sort_order "排序权重"
+        tinyint status "状态：0-下架 1-上架"
+        datetime publish_time "发布时间"
+        datetime create_time "创建时间"
+    }
+
+    %% ========== 票务订单模块（6张表） ==========
+    ticket_type {
+        bigint id PK "主键"
+        bigint scenic_id FK "所属景区ID"
+        varchar name "票种名称（成人票/学生票/老人票/儿童票/团体票）"
+        decimal price "票价（元，DECIMAL精度）"
+        int total_stock "总库存数量"
+        int daily_stock "每日库存上限"
+        int sold_count "累计已售数量"
+        text description "票种说明（适用人群/优惠政策等）"
+        tinyint is_group "是否为团体专属票：0-散客 1-团体"
+        tinyint status "上下架状态：0-下架 1-在售"
+        datetime create_time "创建时间"
+        datetime update_time "更新时间"
+    }
+
+    ticket_order {
+        bigint id PK "主键"
+        varchar order_no UK "订单编号（唯一索引，格式：T+时间戳+随机数）"
+        bigint user_id FK "下单用户ID"
+        bigint scenic_id FK "景区ID"
+        date visit_date "游览日期"
+        date pending_visit_date "待审核的新游览日期（修改申请中）"
+        decimal total_amount "订单原始总金额"
+        decimal pay_amount "实际支付金额（扣除优惠后）"
+        int pay_type "支付方式：0-模拟支付 1-微信支付 2-支付宝"
+        datetime pay_time "支付成功时间"
+        tinyint is_group "是否团体订单：0-散客 1-团体"
+        bigint group_order_id FK "关联的团体订单ID（is_group=1时有值）"
+        bigint coupon_id FK "使用的优惠券ID"
+        decimal discount_amount "优惠减免金额"
+        tinyint status "订单状态：0-待支付 1-已支付 2-已取消 3-已退款 4-修改待审核 5-已入园 6-已出园"
+        datetime create_time "创建时间"
+        datetime update_time "更新时间"
+    }
+
+    order_item {
+        bigint id PK "主键"
+        bigint order_id FK "所属订单ID"
+        bigint ticket_type_id FK "引用的票种ID"
+        int quantity "购买数量"
+        decimal unit_price "购买时的单价（快照，防止后续改价影响）"
+        decimal subtotal "小计金额"
+        datetime create_time "创建时间"
+    }
+
+    refund {
+        bigint id PK "主键"
+        varchar refund_no UK "退款单号（唯一）"
+        bigint order_id FK "关联订单ID（一对一关系）"
+        decimal refund_amount "退款金额"
+        varchar reason "退款原因"
+        tinyint status "退款状态：0-待审核 1-审核通过 2-审核拒绝 3-已退款"
+        bigint reviewer_id FK "审核人ID"
+        datetime review_time "审核时间"
+        datetime create_time "申请时间"
+    }
+
+    gate {
+        bigint id PK "主键"
+        varchar gate_no UK "闸机编号（唯一），如：GATE_A01"
+        varchar gate_name "闸机名称，如：南门检票口"
+        varchar location "位置描述"
+        tinyint status "状态：0-离线 1-在线"
+        datetime create_time "创建时间"
+    }
+
+    %% ========== 团体票模块（2张表） ==========
+    group_order {
+        bigint id PK "主键"
+        varchar group_name "团体名称（公司名/旅行社名）"
+        varchar contact_person "联系人姓名"
+        varchar contact_phone "联系电话"
+        int total_count "成员总数"
+        decimal total_amount "总金额"
+        text remark "备注信息"
+        tinyint status "状态：0-待审核 1-审核通过 2-审核拒绝 3-已支付确认 4-已完成"
+        bigint creator_id FK "创建人ID"
+        datetime create_time "创建时间"
+        datetime update_time "更新时间"
+    }
+
+    group_member {
+        bigint id PK "主键"
+        bigint group_order_id FK "所属团体订单ID"
+        varchar real_name "成员真实姓名"
+        varchar id_card "身份证号（AES-256加密存储）"
+        varchar phone "手机号"
+        varchar face_image_path "人脸图片路径（Excel导入时可选）"
+        tinyint face_status "人脸录入状态：0-未录入 1-已录入 2-检测不通过"
+        tinyint entry_status "入园状态：0-未入园 1-已入园"
+        datetime face_time "人脸录入时间"
+        datetime entry_time "入园时间"
+        datetime create_time "创建时间"
+    }
+
+    %% ========== 人脸入园模块（3张表） ==========
+    tourist {
+        bigint id PK "主键"
+        bigint user_id FK "关联的系统用户ID"
+        varchar real_name "游客真实姓名"
+        varchar id_card "身份证号（AES-256加密）"
+        varchar phone "手机号"
+        varchar baidu_face_token "百度云端人脸唯一标识token"
+        tinyint face_status "人脸状态：0-未录入 1-有效 2-过期"
+        datetime create_time "创建时间"
+        datetime update_time "更新时间"
+    }
+
+    face_data {
+        bigint id PK "主键"
+        bigint tourist_id FK "关联的游客ID（散客场景）"
+        bigint user_id FK "操作人用户ID"
+        bigint order_id FK "关联的订单ID（票务人脸绑定凭证）"
+        varchar baidu_face_token "百度人脸唯一标识（注册后返回）"
+        varchar baidu_group_id "百度人脸库分组ID（按日期：scenic_yyyyMMdd）"
+        varbinary face_image "人脸照片Base64/BLOB数据"
+        varchar face_image_path "本地文件存储路径"
+        decimal quality_score "百度人脸质量评分（0~100分，≥60合格）"
+        datetime expire_time "过期时间（游览日期后7天自动失效）"
+        tinyint status "有效性：0-已失效 1-有效"
+        datetime create_time "录入时间"
+    }
+
+    entry_log {
+        bigint id PK "主键"
+        bigint order_id FK "关联订单ID（验票凭证）"
+        bigint face_data_id FK "关联人脸数据ID（比对源）"
+        decimal compare_score "人脸比对相似度得分（阈值≥0.80放行）"
+        varbinary capture_image "抓拍图像（BLOB）"
+        varchar capture_image_path "抓拍图片本地路径"
+        datetime entry_time "入园通行时间"
+        datetime exit_time "出园时间（未出园为NULL）"
+        varchar gate_no FK "通过的闸机编号"
+        tinyint verify_type "核验方式：0-人脸识别 1-人工验票"
+        varchar checker_name "检票员姓名"
+    }
+
+    %% ========== 营销内容模块（2张表） ==========
+    coupon {
+        bigint id PK "主键"
+        varchar name "优惠券名称"
+        varchar code UK "优惠券编码（唯一）"
+        varchar type "类型：fixed（固定金额）/ percent（折扣百分比）"
+        decimal value "优惠值（固定金额或折扣比例）"
+        decimal min_amount "最低使用门槛金额"
+        int total_count "发放总量"
+        int used_count "已使用数量"
+        datetime valid_start "有效期起始"
+        datetime valid_end "有效期截止"
+        tinyint status "状态：0-停用 1-启用"
+        datetime create_time "创建时间"
+    }
+
+    user_coupon {
+        bigint id PK "主键"
+        bigint user_id FK "领取用户ID"
+        bigint coupon_id FK "关联的优惠券模板ID"
+        varchar coupon_code "实际使用的券码"
+        tinyint status "状态：0-未使用 1-已使用 2-已过期"
+        bigint order_id FK "使用的订单ID（status=1时有值）"
+        datetime used_time "使用时间"
+        datetime create_time "领取时间"
+    }
+
+    %% ========== AI智能模块（1张表） ==========
+    ai_conversation {
+        bigint id PK "主键"
+        bigint user_id FK "对话用户ID"
+        varchar session_id "会话标识（UUID，同一对话窗口共享）"
+        text question "用户输入的问题原文"
+        text answer "AI返回的完整回答（Markdown格式）"
+        varchar intent "意图分类：consult/buy_ticket/guide/travelogue/other"
+        int tokens_used "本次对话消耗的Token数"
+        int response_time_ms "响应耗时（毫秒）"
+        tinyint feedback "用户反馈评价：0-未评 1-有用 2-无用"
+        datetime create_time "对话时间"
+    }
+
+    %% ==================== 实体关系连线 ====================
+    %% --- 用户权限体系 ---
+    sys_user ||--o{ sys_user_role : "拥有（一对多）"
+    sys_role ||--o{ sys_user_role : "被分配（一对多）"
+    sys_user ||--o{ sys_oper_log : "产生操作日志（一对多）"
+    sys_user ||--o{ ai_conversation : "发起AI对话（一对多）"
+    sys_user ||--o{ ticket_order : "下单购票（一对多）"
+    sys_user ||--o{ tourist : "绑定游客档案（一对一）"
+    sys_user ||--o| user_coupon : "领取优惠券（一对多）"
+
+    %% --- 人脸入园链路 ---
+    tourist ||--o{ face_data : "录入人脸（一对多，多次游览多次录入）"
+    face_data ||--o{ entry_log : "产生入园记录（一对一）"
+
+    %% --- 景区内容层级 ---
+    scenic ||--o{ ticket_type : "定义票种（一对多）"
+    scenic ||--o{ scenic_spot : "包含景点（一对多）"
+    scenic ||--o{ scenic_facility : "配置设施（一对多）"
+    scenic ||--o{ group_order : "接收团体订单（一对多）"
+
+    %% --- 订单明细拆分 ---
+    ticket_type ||--o{ order_item : "被订单明细引用（一对多）"
+    ticket_order ||--o{ order_item : "包含多条明细（一对多）"
+    ticket_order ||--o{ entry_log : "记录入园日志（一对多）"
+    ticket_order ||--o|| refund : "产生退款记录（一对一）"
+
+    %% --- 团体票层级 ---
+    group_order ||--o{ group_member : "包含多名成员（一对多）"
+    group_order ||--o{ ticket_order : "自动生成正式订单（一对多）"
+
+    %% --- 入园通道 ---
+    gate ||--o{ entry_log : "闸机通道记录入园流水（一对多）"
+
+    %% --- 优惠券体系 ---
+    coupon ||--o{ user_coupon : "作为模板被领取（一对多）"
+    ticket_order ||--o| user_coupon : "使用优惠券消费（一对一）"

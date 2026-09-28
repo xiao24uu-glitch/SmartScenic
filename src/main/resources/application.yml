@@ -1,0 +1,58 @@
+server:
+  port: 8080
+  tomcat:
+    max-http-form-post-size: 10MB   # 允许接收Base64编码的大图片
+
+spring:
+  profiles:
+    active: dev
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+# 景区配置（后端启动后通过数据库填充）
+scenic:
+  name:
+  address:
+  description:
+  logo-url:
+  max-capacity:
+
+# DeepSeek AI配置（全部通过后台管理页面配置，此处仅保留占位前缀）
+deepseek:
+
+# 百度人脸识别配置（全部通过后台管理页面配置，此处仅保留占位前缀）
+baidu:
+  face:
+
+# 支付配置
+pay:
+  mock-enabled: true    # 模拟支付开关
+
+# JWT配置
+jwt:
+  # 请通过环境变量 JWT_SECRET 注入密钥（长度至少 32 字节），不要写死在代码或配置文件中
+  # 未设置时应用会生成一次性随机密钥并打印告警，重启后旧 Token 失效（仅建议本地调试使用）
+  secret: ${JWT_SECRET:}
+  expiration: 7200000   # 2小时（毫秒）
+  refresh-expiration: 604800000  # 7天
+
+# 文件上传路径
+file:
+  upload-path: ./uploads
+  avatar-path: ./uploads/avatar
+  face-image-path: ./uploads/face
+  template-path: ./uploads/template
+
+# Knife4j API文档
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn

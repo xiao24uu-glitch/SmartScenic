@@ -1,0 +1,22 @@
+flowchart TD
+    A[游客在对话界面输入问题] --> B[前端建立SSE连接<br/>POST /api/v1/ai/chat]
+    B --> C[后端AiAssistantService]
+    C --> D{检查景区运营状态}
+    D -->|暂停| E[返回暂停服务提示]
+    D -->|正常| F[构建System Prompt]
+    
+    F --> G["注入景区信息:<br/>名称/地址/开放时间"]
+    F --> H["注入票种列表:<br/>名称/价格/说明"]
+    F --> I["注入景点数据:<br/>12个景点及介绍"]
+    F --> J["注入设施位置:<br/>卫生间/餐饮/停车场/医疗"]
+    
+    G --> K[查询历史对话<br/>按sessionId获取上下文]
+    H --> K
+    I --> K
+    J --> K
+    
+    K --> L[调用DeepSeek API<br/>POST chat/completions<br/>stream: true]
+    L --> M[SSE逐字转发前端<br/>SseEmitter流式返回]
+    M --> N[前端打字机效果<br/>逐字渲染Markdown]
+    N --> O[保存对话记录<br/>ai_conversation表]
+    O --> P[意图识别<br/>consult/buy_ticket/guide]
