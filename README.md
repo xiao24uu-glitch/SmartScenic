@@ -83,26 +83,36 @@
 | MySQL | 8.0+ |
 | Redis | 7.x（可选，开发环境可不装） |
 
+> 本项目不提供安装包或一键部署脚本，以上运行环境请由部署者自行安装并配置。
+
 ### 2. 初始化数据库
 
 ```bash
 mysql -u root -p < sql/scenic_ticket.sql
 ```
 
-脚本会创建 `scenic_ticket` 库、22 张业务表，并写入初始数据（橘子洲景区信息、4 个角色与 4 个测试账号、5 个票种、2 张优惠券、4 条公告、2 个闸机、景点与设施数据等）。
+如果执行账号没有 `CREATE DATABASE` 权限，请先手动创建数据库，再执行：
 
-> `uploads/` 目录（演示图片与用户上传文件）未纳入版本库：克隆后请自行把景区 / 设施 / 背景 / 头像等图片放入对应子目录，否则前端图片位置会显示为空白，数据库中的图片路径字段无需修改。
+```sql
+CREATE DATABASE scenic_ticket DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+```
+
+脚本会自动创建 `scenic_ticket` 库（如果不存在）、22 张业务表，并只写入系统运行所需的最小初始化数据：4 个角色、1 个初始管理员账号、1 条空白景区记录和必要的配置项。
+
+脚本**不包含**任何景区、票种、订单、人脸、日志等演示数据。
+
+> `uploads/` 目录未纳入版本库，仓库中也不包含示例图片。首次部署后请通过管理端「系统配置 / 景点 / 设施」上传你自己的图片，或自行在 `uploads/` 下创建对应子目录并放置文件。
 
 ### 3. 修改数据库连接
 
-编辑 `src/main/resources/application-dev.yml`：
+编辑 `src/main/resources/application-dev.yml`，**必须把数据库密码改成你自己的密码**。当前文件中是占位符 `your-mysql-password`，不修改会导致后端连接失败：
 
 ```yaml
 spring:
   datasource:
     url: jdbc:mysql://localhost:3306/scenic_ticket?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
-    password: 你的数据库密码
+    password: your-mysql-password  # 请改成你自己的 MySQL 密码
 ```
 
 默认激活的 profile 是 `dev`（见 `application.yml` 中的 `spring.profiles.active`）。
@@ -133,9 +143,12 @@ openssl rand -base64 48
 [Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Maximum 256 }))
 ```
 
-### 5. 配置密钥（AI 与百度人脸）
+### 5. 配置 AI 与百度人脸密钥（用户自行申请）
 
-推荐做法：**先启动系统，登录管理端 →「系统配置」页面填写**。配置保存在数据库 `sys_config` 表中，重启不丢失，保存即热生效。
+1. **申请 DeepSeek 密钥**：访问 DeepSeek 开放平台注册并创建 API Key。默认接口地址为 `https://api.deepseek.com/chat/completions`，默认模型为 `deepseek-chat`。
+2. **申请百度人脸密钥**：访问百度智能云控制台，开通「人脸识别」服务并创建应用，获取 `App ID`、`API Key`、`Secret Key`。
+3. **写入系统配置**：启动系统后，使用 `admin` 登录管理端，进入「系统配置」页面填写上述密钥。
+4. **保存生效**：配置保存在数据库 `sys_config` 表中，保存后即时生效，重启后不会丢失。
 
 | 配置项 | 说明 |
 |--------|------|
@@ -147,7 +160,7 @@ openssl rand -base64 48
 | `baidu.face.threshold` | 1:N 比对相似度阈值，默认 `0.80` |
 | `ticket.booking_days_normal` | 散客最大可预约天数，默认 `7` |
 | `ticket.booking_days_group` | 团体票最大可预约天数，默认 `14` |
-| `scenic.name` / `scenic.address` / `scenic.logo_url` / ... | 景区名称、地址、Logo 等，全局引用 |
+| 景区名称、地址、Logo 等 | 请在「系统配置」页面上方的「景区信息」表单中维护 |
 
 > 未配置 DeepSeek / 百度密钥时，AI 助手与人脸相关接口会返回「配置未设置」的错误提示，其余功能不受影响。
 
@@ -190,9 +203,8 @@ npm run dev
 | 用户名 | 密码 | 角色 | 可切换角色 |
 |--------|------|------|------------|
 | admin | admin123 | 超级管理员 | ADMIN / MANAGER / CHECKER |
-| manager | admin123 | 景区管理员 | MANAGER / CHECKER |
-| checker | admin123 | 检票员 | 仅 CHECKER |
-| tester | admin123 | 游客 | 仅 TOURIST |
+
+> 其他角色和账号请由管理员在「用户与权限」中创建；游客也可以在前台自助注册。
 
 ### 常见问题
 
@@ -223,8 +235,8 @@ npm run dev
 
 ### 3. 管理端使用
 
-- 使用 `admin` / `manager` 登录后访问 http://localhost:5173/admin ，左侧菜单按角色动态显示。
-- 使用 `checker` 登录后默认跳转 `/admin/checker-dashboard`。
+- 使用 `admin` 登录后访问 http://localhost:5173/admin ，左侧菜单按角色动态显示。
+- 如需 `MANAGER` / `CHECKER` 角色，请先由管理员在「用户与权限」中创建对应账号；`CHECKER` 登录后默认跳转 `/admin/checker-dashboard`。
 - 建议首次使用顺序：**系统配置**（景区信息 + 密钥）→ **票种管理** → **景点/设施/闸机** → **公告** → **优惠券** → 正式售票。
 
 ### 4. 角色切换
@@ -235,6 +247,8 @@ npm run dev
 
 后台修改的任何 `sys_config` 配置（景区名称、密钥、预约天数等）保存后即时生效，无需重启；同时写入 Redis/Caffeine 缓存，应用重启后自动从数据库回载。
 ## 五、输入输出示例
+
+以下示例中的 `tester` 是需要先在游客端注册的账号；初始化脚本默认只提供 `admin` 账号。
 
 ### 统一响应格式
 

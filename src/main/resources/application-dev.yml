@@ -7,7 +7,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/scenic_ticket?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
-    password: your-mysql-password   # 请填写本机 MySQL 密码
+    password: your-mysql-password   # 请改成你自己的 MySQL 密码
 
   data:
     redis:
